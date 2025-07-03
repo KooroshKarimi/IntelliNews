@@ -16,6 +16,13 @@ describe('matchesTopics', () => {
   it('returns false when article does not match keywords', () => {
     expect(matchesTopics({ title: 'Economy update', summary: 'markets' }, topics)).toBe(false)
   })
+
+  it('returns false when exclude keyword matches', () => {
+    const topicsWithExclude: Topic[] = [
+      { id: '1', name: 'AI', keywords: ['ai'], excludeKeywords: ['breakthrough'] },
+    ]
+    expect(matchesTopics({ title: 'AI breakthrough', summary: '' }, topicsWithExclude)).toBe(false)
+  })
 })
 
 describe('deduplicateArticles', () => {

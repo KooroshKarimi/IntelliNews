@@ -17,6 +17,7 @@ function App() {
   const [newFeedUrl, setNewFeedUrl] = useState('')
   const [newTopicName, setNewTopicName] = useState('')
   const [newTopicKeywords, setNewTopicKeywords] = useState('')
+  const [newTopicExclude, setNewTopicExclude] = useState('')
 
   const fetchAll = async () => {
     if (feeds.length === 0) return
@@ -59,12 +60,17 @@ function App() {
   const addTopic = () => {
     if (!newTopicName.trim() || !newTopicKeywords.trim()) return
     const keywords = newTopicKeywords.split(',').map((k) => k.trim())
+    const excludeKeywords = newTopicExclude
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean)
     setTopics([
       ...topics,
-      { id: uuidv4(), name: newTopicName, keywords },
+      { id: uuidv4(), name: newTopicName, keywords, excludeKeywords },
     ])
     setNewTopicName('')
     setNewTopicKeywords('')
+    setNewTopicExclude('')
   }
 
   const removeTopic = (id: string) => {
@@ -132,6 +138,13 @@ function App() {
             placeholder="Keywords (comma separated)"
             value={newTopicKeywords}
             onChange={(e) => setNewTopicKeywords(e.target.value)}
+          />
+          <input
+            type="text"
+            className="border p-2 flex-1"
+            placeholder="Exclude keywords (optional)"
+            value={newTopicExclude}
+            onChange={(e) => setNewTopicExclude(e.target.value)}
           />
           <button
             className="bg-blue-600 text-white px-4 py-2 rounded"

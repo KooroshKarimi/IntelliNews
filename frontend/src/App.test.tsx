@@ -75,11 +75,14 @@ describe('App component integration', () => {
       target: { value: 'Sports' },
     })
     fireEvent.change(screen.getByPlaceholderText('Keywords (comma separated)'), {
-      target: { value: 'football' },
+      target: { value: 'world' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Exclude keywords (optional)'), {
+      target: { value: 'hello' },
     })
     fireEvent.click(screen.getAllByText('Add')[1])
 
-    // article should disappear (no keyword match)
+    // article should disappear because exclude keyword matched
     await waitFor(() => {
       expect(screen.queryByText('Hello World')).toBeNull()
     })
