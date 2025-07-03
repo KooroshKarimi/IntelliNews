@@ -2,69 +2,14 @@ import { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { matchesTopics, deduplicateArticles } from './utils/articles'
-
-interface Feed {
-  id: string
-  name: string
-  url: string
-}
-
-interface Topic {
-  id: string
-  name: string
-  keywords: string[]
-  excludeKeywords?: string[]
-}
-
-interface Article {
-  id: string
-  feedId: string
-  feedName: string
-  link: string
-  title: string
-  summary: string
-  publicationDate: string
-}
-
-/**
- * Fetches and parses RSS feed using a public CORS proxy (allorigins).
- */
-async function fetchFeedArticles(feed: Feed): Promise<Article[]> {
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`
-    const res = await fetch(proxyUrl)
-    if (!res.ok) throw new Error(`Network response not ok: ${res.status}`)
-    const json = await res.json()
-    const xmlString: string = json.contents
-    const parser = new DOMParser()
-    const xml = parser.parseFromString(xmlString, 'application/xml')
-    const items = Array.from(xml.querySelectorAll('item'))
-    return items.map((item) => {
-      const title = item.querySelector('title')?.textContent ?? 'No title'
-      const link = item.querySelector('link')?.textContent ?? '#'
-      const description =
-        item.querySelector('description')?.textContent ?? ''
-      const pubDate = item.querySelector('pubDate')?.textContent ?? ''
-      return {
-        id: link || uuidv4(),
-        feedId: feed.id,
-        feedName: feed.name,
-        link,
-        title,
-        summary: description,
-        publicationDate: pubDate,
-      }
-    })
-  } catch (error) {
-    console.error(`Failed to fetch feed ${feed.url}:`, error)
-    return []
-  }
-}
+import { fetchFeedArticles } from './api/fetchFeed'
+import type { Feed as FeedType, Article as ArticleType } from './api/fetchFeed'
+import type { Topic } from './utils/articles'
 
 function App() {
-  const [feeds, setFeeds] = useLocalStorage<Feed[]>('feeds', [])
+  const [feeds, setFeeds] = useLocalStorage<FeedType[]>('feeds', [])
   const [topics, setTopics] = useLocalStorage<Topic[]>('topics', [])
-  const [articles, setArticles] = useState<Article[]>([])
+  const [articles, setArticles] = useState<ArticleType[]>([])
   const [loading, setLoading] = useState(false)
 
   // local state for forms
@@ -76,7 +21,7 @@ function App() {
   const fetchAll = async () => {
     if (feeds.length === 0) return
     setLoading(true)
-    const all: Article[] = []
+    const all: ArticleType[] = []
     for (const feed of feeds) {
       const feedArticles = await fetchFeedArticles(feed)
       all.push(...feedArticles)
