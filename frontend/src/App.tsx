@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useLocalStorage } from './hooks/useLocalStorage'
-import { jaccardIndex } from './utils/jaccard'
+import { matchesTopics, deduplicateArticles } from './utils/articles'
 
 interface Feed {
   id: string
@@ -73,41 +73,16 @@ function App() {
   const [newTopicName, setNewTopicName] = useState('')
   const [newTopicKeywords, setNewTopicKeywords] = useState('')
 
-  // helper: does article match topic filters?
-  const articleMatchesTopics = (article: Article) => {
-    if (topics.length === 0) return true
-    const text = `${article.title} ${article.summary}`.toLowerCase()
-    return topics.some((topic) => {
-      const includeMatch = topic.keywords.some((kw) =>
-        text.includes(kw.toLowerCase()),
-      )
-      const excludeMatch = (topic.excludeKeywords || []).some((kw) =>
-        text.includes(kw.toLowerCase()),
-      )
-      return includeMatch && !excludeMatch
-    })
-  }
-
   const fetchAll = async () => {
     if (feeds.length === 0) return
     setLoading(true)
     const all: Article[] = []
     for (const feed of feeds) {
       const feedArticles = await fetchFeedArticles(feed)
-      for (const article of feedArticles) {
-        const isDuplicate = all.some(
-          (a) =>
-            jaccardIndex(
-              `${a.title} ${a.summary}`,
-              `${article.title} ${article.summary}`,
-            ) > 0.9,
-        )
-        if (!isDuplicate) {
-          all.push(article)
-        }
-      }
+      all.push(...feedArticles)
     }
-    const filtered = all.filter(articleMatchesTopics)
+    const deduped = deduplicateArticles(all, 0.9)
+    const filtered = deduped.filter((a) => matchesTopics(a, topics))
     filtered.sort(
       (a, b) =>
         new Date(b.publicationDate).getTime() -
