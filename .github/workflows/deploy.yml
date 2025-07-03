@@ -12,8 +12,8 @@ jobs:
       id-token: 'write'
 
     env:
-      GCP_REGION: europe-west3  # Adjust if needed
-      GCP_PROJECT_ID: "1002281569314"
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       SERVICE_NAME: backend
 
     steps:
