@@ -11,6 +11,7 @@ function App() {
   const [topics, setTopics] = useLocalStorage<Topic[]>('topics', [])
   const [articles, setArticles] = useState<ArticleType[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // local state for forms
   const [newFeedName, setNewFeedName] = useState('')
@@ -24,8 +25,13 @@ function App() {
     setLoading(true)
     const all: ArticleType[] = []
     for (const feed of feeds) {
-      const feedArticles = await fetchFeedArticles(feed)
-      all.push(...feedArticles)
+      try {
+        const feedArticles = await fetchFeedArticles(feed)
+        all.push(...feedArticles)
+      } catch (err) {
+        console.error(err)
+        setError(`Failed to load feed "${feed.name}"`)
+      }
     }
     const deduped = deduplicateArticles(all, 0.9)
     const filtered = deduped.filter((a) => matchesTopics(a, topics))
@@ -79,6 +85,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 p-4">
+      {error && (
+        <div className="mb-4 rounded bg-red-100 text-red-800 p-2 flex justify-between items-start">
+          <span>{error}</span>
+          <button className="ml-4" onClick={() => setError(null)}>✕</button>
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-4">IntelliNews — Feed Reader (0.3)</h1>
 
       {/* Feed management */}
