@@ -1,0 +1,4 @@
+/* Replaced default styles with TailwindCSS directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
