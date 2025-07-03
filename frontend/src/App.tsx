@@ -51,6 +51,11 @@ function App() {
 
   const addFeed = () => {
     if (!newFeedUrl.trim()) return
+    const exists = feeds.some((f) => f.url === newFeedUrl.trim())
+    if (exists) {
+      setError('Feed already exists')
+      return
+    }
     setFeeds([
       ...feeds,
       { id: uuidv4(), name: newFeedName || newFeedUrl, url: newFeedUrl },
