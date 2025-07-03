@@ -39,13 +39,9 @@ jobs:
           gcloud config list account --format "value(core.account)"
           echo ""
           echo "=== Available APIs ==="
-          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)"
+          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)" || true
           echo ""
-          echo "=== IAM Roles ==="
-          gcloud projects get-iam-policy $GCP_PROJECT_ID \
-            --flatten="bindings[].members" \
-            --filter="bindings.members:serviceAccount:cloud-run-deployer@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
-            --format="value(bindings.role)"
+          echo "Skipping IAM policy check (requires additional permissions)"
 
       - name: Create Artifact Registry Repository (if not exists)
         run: |
