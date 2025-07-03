@@ -91,7 +91,7 @@ function App() {
   const fetchAll = async () => {
     if (feeds.length === 0) return
     setLoading(true)
-    let all: Article[] = []
+    const all: Article[] = []
     for (const feed of feeds) {
       const feedArticles = await fetchFeedArticles(feed)
       for (const article of feedArticles) {
