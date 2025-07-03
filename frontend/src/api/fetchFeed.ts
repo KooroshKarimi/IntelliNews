@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Feed, Article } from '../types'
 
+// Re-export types for backward compatibility
+export type { Feed, Article }
+
 /**
  * Fetches and parses RSS feed using a public CORS proxy (allorigins).
  * @param feed Feed descriptor

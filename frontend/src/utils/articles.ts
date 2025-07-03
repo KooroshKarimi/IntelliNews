@@ -1,11 +1,8 @@
 import { jaccardIndex } from './jaccard'
+import type { Topic } from '../types'
 
-export interface Topic {
-  id: string
-  name: string
-  keywords: string[]
-  excludeKeywords?: string[]
-}
+// Re-export for backward compatibility
+export type { Topic }
 
 export interface ArticleLike {
   title: string
