@@ -198,7 +198,7 @@ function App() {
           </button>
         </div>
         {loading ? (
-          <p>Loading…</p>
+          <div data-testid="loading" className="text-gray-600">Loading…</div>
         ) : articles.length === 0 ? (
           <p>No articles found.</p>
         ) : (
