@@ -1,20 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
-
-export interface Feed {
-  id: string
-  name: string
-  url: string
-}
-
-export interface Article {
-  id: string
-  feedId: string
-  feedName: string
-  link: string
-  title: string
-  summary: string
-  publicationDate: string
-}
+import type { Feed, Article } from '../types'
 
 /**
  * Fetches and parses RSS feed using a public CORS proxy (allorigins).
