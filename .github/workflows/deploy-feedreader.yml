@@ -1,0 +1,52 @@
+name: CI-CD FeedReader
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+      GAR_REGION: ${{ secrets.GAR_REGION }}
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      SERVICE_NAME: feedreader
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.GCP_PROJECT }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Configure Docker to use Artifact Registry
+        run: |
+          gcloud auth configure-docker "${GAR_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and Push Docker image
+        run: |
+          IMAGE_URI="${GAR_REGION}-docker.pkg.dev/${GCP_PROJECT}/feedreader/${SERVICE_NAME}:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+        env:
+          GAR_REGION: ${{ env.GAR_REGION }}
+          GCP_PROJECT: ${{ env.GCP_PROJECT }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.GCP_REGION }}
+          image: "${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/feedreader/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          allow-unauthenticated: true
