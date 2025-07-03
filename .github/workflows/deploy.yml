@@ -30,13 +30,38 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Debug - Check permissions
+        run: |
+          echo "=== Debug Information ==="
+          echo "Project ID: $GCP_PROJECT_ID"
+          echo "Region: $GCP_REGION"
+          echo "Service Account:"
+          gcloud config list account --format "value(core.account)"
+          echo ""
+          echo "=== Available APIs ==="
+          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)"
+          echo ""
+          echo "=== IAM Roles ==="
+          gcloud projects get-iam-policy $GCP_PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:cloud-run-deployer@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
+            --format="value(bindings.role)"
+
+      - name: Create Artifact Registry Repository (if not exists)
+        run: |
+          gcloud artifacts repositories create app \
+            --repository-format=docker \
+            --location=$GCP_REGION \
+            --description="Container repository" \
+            --project=$GCP_PROJECT_ID || echo "Repository already exists"
+
       - name: Build and push container image
         run: |
           # Direct docker build and push
           IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
           
           # Configure docker for Artifact Registry
-          gcloud auth configure-docker $GCP_REGION-docker.pkg.dev
+          gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
           
           # Build and push
           docker build -t "$IMAGE_URI" .
