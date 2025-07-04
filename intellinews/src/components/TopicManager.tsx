@@ -9,7 +9,6 @@ interface TopicManagerProps {
 
 export const TopicManager: React.FC<TopicManagerProps> = ({ topics, onTopicsChange }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [newTopic, setNewTopic] = useState<Partial<Topic>>({
     name: '',
     keywords: [],
