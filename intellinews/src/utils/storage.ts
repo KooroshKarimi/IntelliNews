@@ -1,4 +1,4 @@
-import { AppConfiguration, Feed, Topic } from '../types';
+import { AppConfiguration } from '../types';
 
 const STORAGE_KEY = 'intellinews-config';
 
