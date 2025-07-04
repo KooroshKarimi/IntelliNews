@@ -5,69 +5,28 @@ on:
     branches: [ main ]
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
-
-    env:
-      GCP_REGION: ${{ secrets.GCP_REGION }}
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      SERVICE_NAME: backend
+      contents: read      # read-only access to the repository content
+      id-token: write     # needed for Workload Identity/OIDC
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      # Authenticate to Google Cloud using the service-account key stored in the secret
+      - id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          token_format: 'access_token'
 
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+      # Build container image and deploy to Cloud Run in a single step
+      - id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
-
-      - name: Debug - Check permissions
-        run: |
-          echo "=== Debug Information ==="
-          echo "Project ID: $GCP_PROJECT_ID"
-          echo "Region: $GCP_REGION"
-          echo "Service Account:"
-          gcloud config list account --format "value(core.account)"
-          echo ""
-          echo "=== Available APIs ==="
-          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)" || true
-          echo ""
-          echo "Skipping IAM policy check (requires additional permissions)"
-
-      - name: Create Artifact Registry Repository (if not exists)
-        run: |
-          gcloud artifacts repositories create app \
-            --repository-format=docker \
-            --location=$GCP_REGION \
-            --description="Container repository" \
-            --project=$GCP_PROJECT_ID || echo "Repository already exists"
-
-      - name: Build and push container image
-        run: |
-          # Direct docker build and push
-          IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
-          
-          # Configure docker for Artifact Registry
-          gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
-          
-          # Build and push
-          docker build -t "$IMAGE_URI" .
-          docker push "$IMAGE_URI"
-
-      - name: Deploy to Cloud Run
-        run: |
-          IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
-          gcloud run deploy $SERVICE_NAME \
-            --image "$IMAGE_URI" \
-            --region "$GCP_REGION" \
-            --platform managed \
-            --allow-unauthenticated
+          service: backend                     # Cloud Run service name
+          region: ${{ secrets.GCP_REGION }}    # e.g. europe-west3
+          source: .                            # directory that contains Dockerfile
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          allow_unauthenticated: true
