@@ -81,7 +81,7 @@ function App() {
 
   // Load articles on mount and when feeds change
   useEffect(() => {
-    if (configuration.feeds.length > 0 && !loading) {
+    if (configuration.feeds.length > 0) {
       loadArticles();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,7 +89,7 @@ function App() {
 
   // Reload articles when topics change (to update topic matching)
   useEffect(() => {
-    if (articles.length > 0 && configuration.feeds.length > 0 && !loading) {
+    if (articles.length > 0 && configuration.feeds.length > 0) {
       loadArticles();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -201,7 +201,7 @@ function App() {
         {activeTab === 'feeds' && (
           <FeedManager
             feeds={configuration.feeds}
-            onFeedsChange={(feeds) => setConfiguration({ ...configuration, feeds })}
+            onFeedsChange={(feeds) => setConfiguration(prev => ({ ...prev, feeds }))}
           />
         )}
 

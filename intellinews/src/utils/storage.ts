@@ -23,6 +23,12 @@ export function loadConfiguration(): AppConfiguration {
         name: 'BBC Technology',
         url: 'http://feeds.bbci.co.uk/news/technology/rss.xml',
         language: 'en'
+      },
+      {
+        id: '3',
+        name: 'Test Feed (Ungültig)',
+        url: 'https://invalid-url-that-will-fail.com/rss',
+        language: 'de'
       }
     ],
     topics: [
