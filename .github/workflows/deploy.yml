@@ -29,4 +29,4 @@ jobs:
           region: ${{ secrets.GCP_REGION }}    # e.g. europe-west3
           source: .                            # directory that contains Dockerfile
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          allow_unauthenticated: true
+          flags: "--allow-unauthenticated"
