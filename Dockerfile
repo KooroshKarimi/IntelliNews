@@ -1,12 +1,12 @@
-# ---------- Stage 1: Build frontend ----------
+# ---------- Stage 1: Build frontend (IntelliNews) ----------
 FROM node:18 AS build-frontend
-WORKDIR /app/frontend
+WORKDIR /app/intellinews
 
 # Install frontend dependencies and build
-COPY frontend/package.json ./
-COPY frontend/package-lock.json ./
+COPY intellinews/package.json ./
+COPY intellinews/package-lock.json ./
 RUN npm install --legacy-peer-deps
-COPY frontend ./
+COPY intellinews ./
 RUN npm run build
 
 # ---------- Stage 2: Prepare backend ----------
@@ -21,7 +21,7 @@ RUN cd backend && npm ci
 COPY backend ./backend
 
 # Copy built frontend assets into backend public folder
-COPY --from=build-frontend /app/frontend/build ./backend/public
+COPY --from=build-frontend /app/intellinews/build ./backend/public
 
 WORKDIR /app/backend
 ENV PORT=8080

@@ -9,3 +9,5 @@ README.md
 # Explicitly include package-lock.json files required for npm ci
 !frontend/package-lock.json
 !backend/package-lock.json
+intellinews/node_modules
+!intellinews/package-lock.json
