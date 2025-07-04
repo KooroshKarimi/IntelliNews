@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Article, Feed, Topic, AppConfiguration } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Article, AppConfiguration } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
@@ -20,7 +20,7 @@ function App() {
   }, [configuration]);
 
   // Load articles from feeds
-  const loadArticles = async () => {
+  const loadArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -74,14 +74,14 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [configuration.feeds, configuration.topics]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
     if (configuration.feeds.length > 0) {
       loadArticles();
     }
-  }, [configuration.feeds]);
+  }, [configuration.feeds, loadArticles]);
 
   // Filter articles by selected topic
   const filteredArticles = selectedTopic
