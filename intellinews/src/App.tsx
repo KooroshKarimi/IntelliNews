@@ -21,9 +21,6 @@ function App() {
 
   // Load articles from feeds
   const loadArticles = useCallback(async () => {
-    // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
-    if (loading) return;
-
     setLoading(true);
     setError(null);
     
@@ -80,14 +77,23 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [configuration.feeds, configuration.topics, loading]);
+  }, [configuration.feeds, configuration.topics]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
-    if (configuration.feeds.length > 0) {
+    if (configuration.feeds.length > 0 && !loading) {
       loadArticles();
     }
-  }, [configuration.feeds, loadArticles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuration.feeds]);
+
+  // Reload articles when topics change (to update topic matching)
+  useEffect(() => {
+    if (articles.length > 0 && configuration.feeds.length > 0 && !loading) {
+      loadArticles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuration.topics]);
 
   // Filter articles by selected topic
   const filteredArticles = selectedTopic
@@ -156,9 +162,9 @@ function App() {
                 </select>
               </div>
               <button
-                onClick={loadArticles}
+                onClick={() => loadArticles()}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Lädt...' : 'Artikel aktualisieren'}
               </button>
