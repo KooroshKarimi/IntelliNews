@@ -3,7 +3,8 @@ FROM node:18 AS build-frontend
 WORKDIR /app/frontend
 
 # Install frontend dependencies and build
-COPY frontend/package*.json ./
+COPY frontend/package.json ./
+COPY frontend/package-lock.json ./
 RUN npm ci
 COPY frontend ./
 RUN npm run build
