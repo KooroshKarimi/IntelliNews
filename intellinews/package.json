@@ -21,7 +21,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "release": "cd .. && ./release.sh",
+    "release:patch": "cd .. && ./release.sh patch",
+    "release:minor": "cd .. && ./release.sh minor",
+    "release:major": "cd .. && ./release.sh major"
   },
   "eslintConfig": {
     "extends": [
