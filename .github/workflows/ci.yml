@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: intellinews/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ./intellinews
+      run: npm ci
+      
+    - name: Lint code
+      working-directory: ./intellinews
+      run: npx eslint src --ext .ts,.tsx --max-warnings 0
+      continue-on-error: true
+      
+    - name: Run tests
+      working-directory: ./intellinews
+      run: npm test -- --coverage --watchAll=false --ci
+      
+    - name: Build project
+      working-directory: ./intellinews
+      run: npm run build
+      
+    - name: Check build size
+      working-directory: ./intellinews
+      run: du -sh build/
+      
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./intellinews/coverage/
+        fail_ci_if_error: false
