@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR#!/bin/bash
+#!/bin/bash
 
 # IntelliNews Release Script
 # This script helps you create a new release for the IntelliNews project
@@ -40,29 +40,38 @@ echo "- IntelliNews: $(node -p "require('./intellinews/package.json').version")"
 echo "- Backend: $(node -p "require('./backend/package.json').version")"
 echo "- Frontend: $(node -p "require('./frontend/package.json').version")"
 
-echo ""
-echo "Select version bump type:"
-echo "1) patch (bug fixes)"
-echo "2) minor (new features)"
-echo "3) major (breaking changes)"
-echo ""
-read -p "Enter your choice (1-3): " choice
-
-case $choice in
-    1)
-        VERSION_TYPE="patch"
-        ;;
-    2)
-        VERSION_TYPE="minor"
-        ;;
-    3)
-        VERSION_TYPE="major"
-        ;;
-    *)
-        echo "❌ Invalid choice. Exiting."
+# Check if version type is provided as argument
+if [ $# -eq 1 ]; then
+    VERSION_TYPE=$1
+    if [ "$VERSION_TYPE" != "patch" ] && [ "$VERSION_TYPE" != "minor" ] && [ "$VERSION_TYPE" != "major" ]; then
+        echo "❌ Invalid version type. Use: patch, minor, or major"
         exit 1
-        ;;
-esac
+    fi
+else
+    echo ""
+    echo "Select version bump type:"
+    echo "1) patch (bug fixes)"
+    echo "2) minor (new features)"
+    echo "3) major (breaking changes)"
+    echo ""
+    read -p "Enter your choice (1-3): " choice
+
+    case $choice in
+        1)
+            VERSION_TYPE="patch"
+            ;;
+        2)
+            VERSION_TYPE="minor"
+            ;;
+        3)
+            VERSION_TYPE="major"
+            ;;
+        *)
+            echo "❌ Invalid choice. Exiting."
+            exit 1
+            ;;
+    esac
+fi
 
 echo ""
 echo "🔄 Selected: $VERSION_TYPE release"
