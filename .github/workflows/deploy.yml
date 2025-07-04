@@ -14,7 +14,7 @@ jobs:
     env:
       GCP_REGION: ${{ secrets.GCP_REGION }}
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      SERVICE_NAME: backend
+      SERVICE_NAME: intellinews
 
     steps:
       - name: Checkout code
@@ -30,44 +30,78 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Debug - Check permissions
+      - name: Debug - Check configuration
         run: |
-          echo "=== Debug Information ==="
+          echo "=== Deployment Configuration ==="
           echo "Project ID: $GCP_PROJECT_ID"
           echo "Region: $GCP_REGION"
-          echo "Service Account:"
+          echo "Service Name: $SERVICE_NAME"
+          echo "Commit SHA: $GITHUB_SHA"
+          echo ""
+          echo "=== Service Account ==="
           gcloud config list account --format "value(core.account)"
           echo ""
-          echo "=== Available APIs ==="
-          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)" || true
-          echo ""
-          echo "Skipping IAM policy check (requires additional permissions)"
+          echo "=== Required APIs Status ==="
+          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)" || echo "Some APIs may not be enabled"
 
-      - name: Create Artifact Registry Repository (if not exists)
+      - name: Enable required APIs
         run: |
+          echo "Ensuring required APIs are enabled..."
+          gcloud services enable run.googleapis.com
+          gcloud services enable artifactregistry.googleapis.com
+          gcloud services enable cloudbuild.googleapis.com
+
+      - name: Create Artifact Registry Repository
+        run: |
+          echo "Creating Artifact Registry repository..."
           gcloud artifacts repositories create app \
             --repository-format=docker \
             --location=$GCP_REGION \
-            --description="Container repository" \
-            --project=$GCP_PROJECT_ID || echo "Repository already exists"
+            --description="IntelliNews container repository" \
+            --project=$GCP_PROJECT_ID 2>/dev/null || echo "Repository already exists (expected)"
 
       - name: Build and push container image
         run: |
-          # Direct docker build and push
           IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
+          echo "Building image: $IMAGE_URI"
           
           # Configure docker for Artifact Registry
           gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
           
-          # Build and push
-          docker build -t "$IMAGE_URI" .
-          docker push "$IMAGE_URI"
+          # Build and push with error handling
+          if docker build -t "$IMAGE_URI" .; then
+            echo "✅ Docker build successful"
+          else
+            echo "❌ Docker build failed"
+            exit 1
+          fi
+          
+          if docker push "$IMAGE_URI"; then
+            echo "✅ Docker push successful"
+          else
+            echo "❌ Docker push failed"
+            exit 1
+          fi
 
       - name: Deploy to Cloud Run
         run: |
           IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
+          echo "Deploying to Cloud Run: $SERVICE_NAME"
+          
           gcloud run deploy $SERVICE_NAME \
             --image "$IMAGE_URI" \
             --region "$GCP_REGION" \
             --platform managed \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --timeout 300s \
+            --quiet
+
+      - name: Get service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$GCP_REGION --format="value(status.url)")
+          echo "🚀 IntelliNews deployed successfully!"
+          echo "🌐 Service URL: $SERVICE_URL"

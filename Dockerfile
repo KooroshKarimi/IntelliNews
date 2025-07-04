@@ -1,28 +1,21 @@
-# ---------- Stage 1: Build frontend ----------
-FROM node:18 AS build-frontend
-WORKDIR /app/frontend
-
-# Install frontend dependencies and build
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend ./
-RUN npm run build
-
-# ---------- Stage 2: Prepare backend ----------
-FROM node:18 AS build-backend
+# Build stage for IntelliNews React app
+FROM node:18 AS build
 WORKDIR /app
 
-# Install backend dependencies
-COPY backend/package*.json ./backend/
-RUN cd backend && npm ci
+# Copy package files and install dependencies
+COPY intellinews/package*.json ./
+RUN npm ci
 
-# Copy backend source
-COPY backend ./backend
+# Copy source code and build
+COPY intellinews ./
+RUN npm run build
 
-# Copy built frontend assets into backend public folder
-COPY --from=build-frontend /app/frontend/build ./backend/public
+# Production stage with nginx to serve the built app
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
 
-WORKDIR /app/backend
-ENV PORT=8080
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
 EXPOSE 8080
-CMD ["npm", "start"]
+CMD ["nginx", "-g", "daemon off;"]

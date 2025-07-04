@@ -15,9 +15,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 18
         cache: "npm"
         cache-dependency-path: "intellinews/package-lock.json"
 
@@ -32,3 +32,9 @@ jobs:
     - name: Run tests
       run: npm test -- --watchAll=false
       working-directory: intellinews
+
+    - name: Test Docker build
+      run: |
+        echo "Testing Docker build..."
+        docker build -t test-build .
+        echo "✅ Docker build test passed"
