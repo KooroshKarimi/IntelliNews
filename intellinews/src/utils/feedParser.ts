@@ -1,74 +1,45 @@
 import { Article, Feed, Topic } from '../types';
 
-// Use CORS proxy for RSS feeds
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+// Backend endpoint
+const API_PREFIX = '/api/feed?url=';
 
-// Parse RSS feed XML into articles
+// Parse RSS feed via backend route
 export async function parseFeed(feed: Feed): Promise<Article[]> {
   try {
-    // Use CORS proxy to fetch the feed
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(feed.url)}`;
-    const response = await fetch(proxyUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch feed: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const text = data.contents || '';
-    
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(text, 'text/xml');
-    
-    // Check for parsing errors
-    const parserError = xml.querySelector('parsererror');
-    if (parserError) {
-      throw new Error('Invalid RSS feed format');
-    }
-    
-    const items = xml.querySelectorAll('item');
-    const articles: Article[] = [];
-    
-    items.forEach((item) => {
-      const title = item.querySelector('title')?.textContent || '';
-      const link = item.querySelector('link')?.textContent || '';
-      const description = item.querySelector('description')?.textContent || '';
-      const pubDate = item.querySelector('pubDate')?.textContent || '';
-      
-      // Extract image from content or enclosure
+    const res = await fetch(`${API_PREFIX}${encodeURIComponent(feed.url)}`);
+    if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+
+    const items: any[] = await res.json();
+
+    const articles: Article[] = items.map((item) => {
+      // Try to get image from enclosure or description
       let imageUrl: string | undefined;
-      const enclosure = item.querySelector('enclosure');
-      if (enclosure && enclosure.getAttribute('type')?.startsWith('image/')) {
-        imageUrl = enclosure.getAttribute('url') || undefined;
+      if (item.enclosure && item.enclosure.type?.startsWith('image/')) {
+        imageUrl = item.enclosure.url;
       }
-      
-      // Try to find image in content
-      if (!imageUrl) {
-        const content = item.querySelector('content\\:encoded, content')?.textContent || '';
-        const imgMatch = content.match(/<img[^>]+src="([^"]+)"/);
-        if (imgMatch) {
-          imageUrl = imgMatch[1];
-        }
+      if (!imageUrl && item.description) {
+        const match = item.description.match(/<img[^>]+src="([^"]+)"/);
+        if (match) imageUrl = match[1];
       }
-      
-      articles.push({
-        id: link,
-        link,
-        originalTitle: title,
-        originalSummary: description,
+
+      return {
+        id: item.link,
+        link: item.link,
+        originalTitle: item.title,
+        originalSummary: item.description || '',
         sourceFeedName: feed.name,
-        publicationDate: new Date(pubDate).toISOString(),
+        publicationDate: new Date(item.pubDate || Date.now()).toISOString(),
         processedDate: new Date().toISOString(),
         topics: [],
         aiEnhanced: false,
-        imageUrl
-      });
+        imageUrl,
+      };
     });
-    
+
     return articles;
-  } catch (error) {
-    console.error(`Error parsing feed ${feed.name}:`, error);
-    throw error;
+  } catch (err) {
+    console.error(`Error fetching feed ${feed.name}:`, err);
+    throw err;
   }
 }
 
