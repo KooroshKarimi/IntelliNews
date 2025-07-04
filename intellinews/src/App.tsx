@@ -21,6 +21,9 @@ function App() {
 
   // Load articles from feeds
   const loadArticles = useCallback(async () => {
+    // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
+    if (loading) return;
+
     setLoading(true);
     setError(null);
     
@@ -51,8 +54,11 @@ function App() {
         }
       }
 
-      // Update feeds with error status
-      setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
+      // Update feeds with error status nur wenn sich etwas geändert hat
+      const feedsChanged = JSON.stringify(updatedFeeds) !== JSON.stringify(configuration.feeds);
+      if (feedsChanged) {
+        setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
+      }
 
       // Remove duplicates
       const uniqueArticles = removeDuplicates(allArticles);
@@ -74,7 +80,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [configuration.feeds, configuration.topics]);
+  }, [configuration.feeds, configuration.topics, loading]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
