@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { Topic } from '../types';
 import { generateId } from '../utils/storage';
 

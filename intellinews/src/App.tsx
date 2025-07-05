@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Article, AppConfiguration, Feed, Topic } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
