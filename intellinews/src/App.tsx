@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Article, AppConfiguration } from './types';
+import { Article, AppConfiguration, Feed, Topic } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
@@ -46,13 +46,15 @@ function App() {
             delete updatedFeeds[feedIndex].lastError;
             delete updatedFeeds[feedIndex].lastErrorTime;
           }
-        } catch (err) {
-          console.error(`Error loading feed ${feed.name}:`, err);
-          
+        } catch (err: unknown) {
+          // Ensure we always have a string message
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          console.error(`Error loading feed ${feed.name}:`, message);
+
           // Update feed with error information
           const feedIndex = updatedFeeds.findIndex(f => f.id === feed.id);
           if (feedIndex !== -1) {
-            updatedFeeds[feedIndex].lastError = err instanceof Error ? err.message : 'Unknown error';
+            updatedFeeds[feedIndex].lastError = message;
             updatedFeeds[feedIndex].lastErrorTime = new Date().toISOString();
           }
         }
@@ -79,8 +81,9 @@ function App() {
       );
 
       setArticles(articlesWithTopics);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
+      setError(message);
     } finally {
       setLoading(false);
       if (pendingRef.current) {
@@ -89,7 +92,7 @@ function App() {
         loadArticles();
       }
     }
-  }, [configuration.feeds, configuration.topics]);
+  }, [configuration.feeds, configuration.topics, loading]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
@@ -162,7 +165,9 @@ function App() {
                 <label className="text-gray-700">Filter nach Thema:</label>
                 <select
                   value={selectedTopic || ''}
-                  onChange={(e) => setSelectedTopic(e.target.value || null)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setSelectedTopic(e.target.value || null)
+                  }
                   className="px-3 py-2 border rounded-lg"
                 >
                   <option value="">Alle Themen</option>
@@ -213,14 +218,18 @@ function App() {
         {activeTab === 'feeds' && (
           <FeedManager
             feeds={configuration.feeds}
-            onFeedsChange={(feeds) => setConfiguration({ ...configuration, feeds })}
+            onFeedsChange={(feeds: Feed[]) =>
+              setConfiguration({ ...configuration, feeds })
+            }
           />
         )}
 
         {activeTab === 'topics' && (
           <TopicManager
             topics={configuration.topics}
-            onTopicsChange={(topics) => setConfiguration({ ...configuration, topics })}
+            onTopicsChange={(topics: Topic[]) =>
+              setConfiguration({ ...configuration, topics })
+            }
           />
         )}
       </main>
