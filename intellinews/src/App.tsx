@@ -6,7 +6,7 @@ import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
 import { loadConfiguration, saveConfiguration, generateId } from './utils/storage';
 import { parseFeed, removeDuplicates, matchTopics } from './utils/feedParser';
-import { translateArticle } from './utils/aiService';
+import { translateArticle, evaluateSeriousness, generateImageUrl } from './utils/aiService';
 import { ToastContainer, Toast } from './components/ToastContainer';
 
 function App() {
@@ -43,26 +43,50 @@ function App() {
         try {
           let feedArticles = await parseFeed(feed);
 
-          // If feed language is not German, translate title and summary
-          if (feed.language !== 'de') {
-            feedArticles = await Promise.all(
-              feedArticles.map(async (article) => {
+          // Enrich each article (translation, seriousness score, image)
+          feedArticles = await Promise.all(
+            feedArticles.map(async (article) => {
+              let enrichedArticle: Article = { ...article };
+
+              // Translation for non-German feeds
+              if (feed.language !== 'de') {
                 try {
                   const { translatedTitle, translatedSummary } = await translateArticle(article, feed.language);
-                  return {
-                    ...article,
+                  enrichedArticle = {
+                    ...enrichedArticle,
                     translatedTitle,
                     translatedSummary,
                     aiEnhanced: true,
                   };
                 } catch (err) {
-                  // Show toast for failed AI enrichment
-                  addToast('KI-Anreicherung für einen Artikel fehlgeschlagen.');
-                  return article;
+                  addToast('KI-Anreicherung (Übersetzung) für einen Artikel fehlgeschlagen.');
                 }
-              })
-            );
-          }
+              }
+
+              // Seriousness score (mock AI)
+              try {
+                const score = await evaluateSeriousness(enrichedArticle);
+                enrichedArticle = { ...enrichedArticle, seriousnessScore: score, aiEnhanced: true };
+              } catch (err) {
+                console.error('Evaluating seriousness failed', err);
+              }
+
+              // Image generation if none present
+              try {
+                const { url, generated } = generateImageUrl(enrichedArticle);
+                enrichedArticle = {
+                  ...enrichedArticle,
+                  imageUrl: url,
+                  imageGenerated: generated,
+                  aiEnhanced: enrichedArticle.aiEnhanced || generated,
+                };
+              } catch (err) {
+                console.error('Image generation failed', err);
+              }
+
+              return enrichedArticle;
+            })
+          );
 
           allArticles.push(...feedArticles);
           
