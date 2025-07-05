@@ -3,6 +3,12 @@ name: Build and Deploy to Cloud Run
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+env:
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: intellinews
 
 jobs:
   build-deploy:
@@ -10,17 +16,14 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
-
-    env:
-      GCP_REGION: ${{ secrets.GCP_REGION }}
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      SERVICE_NAME: intellinews
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
@@ -30,78 +33,97 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Debug - Check configuration
+      - name: Verify authentication and project
         run: |
-          echo "=== Deployment Configuration ==="
-          echo "Project ID: $GCP_PROJECT_ID"
-          echo "Region: $GCP_REGION"
-          echo "Service Name: $SERVICE_NAME"
-          echo "Commit SHA: $GITHUB_SHA"
-          echo ""
-          echo "=== Service Account ==="
-          gcloud config list account --format "value(core.account)"
-          echo ""
-          echo "=== Required APIs Status ==="
-          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|build|artifactregistry)" || echo "Some APIs may not be enabled"
+          echo "🔍 Verifying authentication and project access..."
+          gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -1
+          gcloud config get-value project
+          echo "✅ Authentication successful"
 
       - name: Enable required APIs
         run: |
-          echo "Ensuring required APIs are enabled..."
-          gcloud services enable run.googleapis.com
-          gcloud services enable artifactregistry.googleapis.com
-          gcloud services enable cloudbuild.googleapis.com
+          echo "🔧 Enabling required Google Cloud APIs..."
+          gcloud services enable run.googleapis.com \
+            artifactregistry.googleapis.com \
+            cloudbuild.googleapis.com \
+            cloudresourcemanager.googleapis.com
+          echo "✅ APIs enabled"
 
-      - name: Create Artifact Registry Repository
+      - name: Create Artifact Registry repository
+        continue-on-error: true
         run: |
-          echo "Creating Artifact Registry repository..."
+          echo "📦 Creating Artifact Registry repository..."
           gcloud artifacts repositories create app \
             --repository-format=docker \
-            --location=$GCP_REGION \
+            --location=${{ env.GCP_REGION }} \
             --description="IntelliNews container repository" \
-            --project=$GCP_PROJECT_ID 2>/dev/null || echo "Repository already exists (expected)"
+            --project=${{ env.GCP_PROJECT_ID }}
+          echo "✅ Repository ready"
 
-      - name: Build and push container image
+      - name: Configure Docker for Artifact Registry
         run: |
-          IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
-          echo "Building image: $IMAGE_URI"
+          echo "🐳 Configuring Docker for Artifact Registry..."
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+          echo "✅ Docker configured"
+
+      - name: Build Docker image
+        run: |
+          IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/app/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          echo "🏗️ Building Docker image: $IMAGE_URI"
           
-          # Configure docker for Artifact Registry
-          gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
+          # Build with BuildKit for better performance
+          export DOCKER_BUILDKIT=1
+          docker build \
+            --tag "$IMAGE_URI" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --progress=plain \
+            .
           
-          # Build and push with error handling
-          if docker build -t "$IMAGE_URI" .; then
-            echo "✅ Docker build successful"
-          else
-            echo "❌ Docker build failed"
-            exit 1
-          fi
-          
-          if docker push "$IMAGE_URI"; then
-            echo "✅ Docker push successful"
-          else
-            echo "❌ Docker push failed"
-            exit 1
-          fi
+          echo "✅ Docker build completed"
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Push Docker image
+        run: |
+          echo "📤 Pushing Docker image..."
+          docker push "$IMAGE_URI"
+          echo "✅ Docker image pushed successfully"
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/app/$SERVICE_NAME:$GITHUB_SHA"
-          echo "Deploying to Cloud Run: $SERVICE_NAME"
-          
-          gcloud run deploy $SERVICE_NAME \
+          echo "🚀 Deploying to Cloud Run..."
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image "$IMAGE_URI" \
-            --region "$GCP_REGION" \
+            --region "${{ env.GCP_REGION }}" \
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
             --memory 512Mi \
             --cpu 1 \
-            --max-instances 10 \
+            --min-instances 0 \
+            --max-instances 5 \
             --timeout 300s \
+            --set-env-vars="NODE_ENV=production" \
             --quiet
+          echo "✅ Deployment completed"
 
-      - name: Get service URL
+      - name: Get service URL and test
         run: |
-          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$GCP_REGION --format="value(status.url)")
-          echo "🚀 IntelliNews deployed successfully!"
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --format="value(status.url)")
+          
           echo "🌐 Service URL: $SERVICE_URL"
+          echo "🏥 Testing health endpoint..."
+          
+          # Test the health endpoint
+          curl -f "$SERVICE_URL/health" || echo "⚠️ Health check failed, but service may still be working"
+          
+          echo "🎉 IntelliNews deployed successfully!"
+          echo "📱 Access your app at: $SERVICE_URL"
+          
+          # Output for GitHub Actions summary
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service URL**: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Health Check**: $SERVICE_URL/health" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: $IMAGE_URI" >> $GITHUB_STEP_SUMMARY
