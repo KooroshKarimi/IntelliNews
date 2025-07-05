@@ -45,7 +45,7 @@ function App() {
 
           // Enrich each article (translation, seriousness score, image)
           feedArticles = await Promise.all(
-            feedArticles.map(async (article) => {
+            feedArticles.map(async (article: Article) => {
               let enrichedArticle: Article = { ...article };
 
               // Translation for non-German feeds
