@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Article, AppConfiguration, Feed, Topic } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
-import { loadConfiguration, saveConfiguration } from './utils/storage';
+import { loadConfiguration, saveConfiguration, generateId } from './utils/storage';
 import { parseFeed, removeDuplicates, matchTopics } from './utils/feedParser';
+import { translateArticle } from './utils/aiService';
+import { ToastContainer, Toast } from './components/ToastContainer';
 
 function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>(loadConfiguration());
@@ -12,6 +15,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const pendingRef = React.useRef(false);
 
@@ -37,7 +41,29 @@ function App() {
 
       for (const feed of configuration.feeds) {
         try {
-          const feedArticles = await parseFeed(feed);
+          let feedArticles = await parseFeed(feed);
+
+          // If feed language is not German, translate title and summary
+          if (feed.language !== 'de') {
+            feedArticles = await Promise.all(
+              feedArticles.map(async (article) => {
+                try {
+                  const { translatedTitle, translatedSummary } = await translateArticle(article, feed.language);
+                  return {
+                    ...article,
+                    translatedTitle,
+                    translatedSummary,
+                    aiEnhanced: true,
+                  };
+                } catch (err) {
+                  // Show toast for failed AI enrichment
+                  addToast('KI-Anreicherung für einen Artikel fehlgeschlagen.');
+                  return article;
+                }
+              })
+            );
+          }
+
           allArticles.push(...feedArticles);
           
           // Clear any previous errors for this feed
@@ -114,6 +140,16 @@ function App() {
   const filteredArticles = selectedTopic
     ? articles.filter(article => article.topics.includes(selectedTopic))
     : articles;
+
+  // Helper to add toast messages
+  const addToast = (message: string) => {
+    const id = generateId();
+    setToasts((prev: Toast[]) => [...prev, { id, message }]);
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      setToasts((prev: Toast[]) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
 
   return (
     <div className="min-h-screen bg-yellow-50">
@@ -233,6 +269,9 @@ function App() {
           />
         )}
       </main>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }

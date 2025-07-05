@@ -8,6 +8,7 @@ export interface Article {
   originalContent?: string;
   translatedTitle?: string;
   translatedSummary?: string;
+  originalLanguage?: 'de' | 'en' | 'other';
   sourceFeedName: string;
   publicationDate: string; // ISO 8601
   processedDate: string; // ISO 8601

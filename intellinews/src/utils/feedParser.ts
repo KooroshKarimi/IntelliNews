@@ -27,6 +27,7 @@ export async function parseFeed(feed: Feed): Promise<Article[]> {
         link: item.link,
         originalTitle: item.title,
         originalSummary: item.description || '',
+        originalLanguage: feed.language,
         sourceFeedName: feed.name,
         publicationDate: new Date(item.pubDate || Date.now()).toISOString(),
         processedDate: new Date().toISOString(),
