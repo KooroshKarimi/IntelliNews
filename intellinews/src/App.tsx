@@ -22,15 +22,11 @@ function App() {
 
   // Load articles from feeds
   const loadArticles = useCallback(async () => {
-<<<<<<< HEAD
-=======
     // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
     if (loading) {
       pendingRef.current = true;
       return;
     }
-
->>>>>>> b8c203c (Ensure newly added feeds are fetched after current load completes)
     setLoading(true);
     setError(null);
     
