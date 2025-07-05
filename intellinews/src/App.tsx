@@ -13,6 +13,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const pendingRef = React.useRef(false);
 
   // Save configuration whenever it changes
   useEffect(() => {
@@ -21,6 +22,11 @@ function App() {
 
   // Load articles from feeds
   const loadArticles = useCallback(async () => {
+    // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
+    if (loading) {
+      pendingRef.current = true;
+      return;
+    }
     setLoading(true);
     setError(null);
     
@@ -76,6 +82,11 @@ function App() {
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
     } finally {
       setLoading(false);
+      if (pendingRef.current) {
+        pendingRef.current = false;
+        // Load again for pending changes
+        loadArticles();
+      }
     }
   }, [configuration.feeds, configuration.topics]);
 
