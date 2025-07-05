@@ -13,6 +13,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const pendingRef = React.useRef(false);
 
   // Save configuration whenever it changes
   useEffect(() => {
@@ -21,6 +22,15 @@ function App() {
 
   // Load articles from feeds
   const loadArticles = useCallback(async () => {
+    // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
+    if (loading) {
+      pendingRef.current = true;
+      return;
+    }
+<<<<<<< HEAD
+=======
+
+>>>>>>> b8c203c (Ensure newly added feeds are fetched after current load completes)
     setLoading(true);
     setError(null);
     
@@ -51,8 +61,11 @@ function App() {
         }
       }
 
-      // Update feeds with error status
-      setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
+      // Update feeds with error status nur wenn sich etwas geändert hat
+      const feedsChanged = JSON.stringify(updatedFeeds) !== JSON.stringify(configuration.feeds);
+      if (feedsChanged) {
+        setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
+      }
 
       // Remove duplicates
       const uniqueArticles = removeDuplicates(allArticles);
@@ -73,15 +86,29 @@ function App() {
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
     } finally {
       setLoading(false);
+      if (pendingRef.current) {
+        pendingRef.current = false;
+        // Load again for pending changes
+        loadArticles();
+      }
     }
   }, [configuration.feeds, configuration.topics]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
-    if (configuration.feeds.length > 0) {
+    if (configuration.feeds.length > 0 && !loading) {
       loadArticles();
     }
-  }, [configuration.feeds, loadArticles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuration.feeds]);
+
+  // Reload articles when topics change (to update topic matching)
+  useEffect(() => {
+    if (articles.length > 0 && configuration.feeds.length > 0 && !loading) {
+      loadArticles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuration.topics]);
 
   // Filter articles by selected topic
   const filteredArticles = selectedTopic
@@ -89,7 +116,7 @@ function App() {
     : articles;
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-yellow-50">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -150,9 +177,9 @@ function App() {
                 </select>
               </div>
               <button
-                onClick={loadArticles}
+                onClick={() => loadArticles()}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Lädt...' : 'Artikel aktualisieren'}
               </button>
@@ -164,7 +191,7 @@ function App() {
               </div>
             )}
 
-            {loading ? (
+            {loading && articles.length === 0 ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
