@@ -58,16 +58,38 @@ export async function translateArticle(
  * In a real setup this would call an AI provider defined via IAiProvider.
  */
 export async function evaluateSeriousness(article: Article): Promise<number> {
-  // Simple heuristic: longer, keyword-rich articles are deemed more serious.
-  const text = `${article.originalTitle} ${article.originalSummary}`;
-  const length = text.length;
+  // Combine title & summary for evaluation
+  const text = `${article.originalTitle} ${article.originalSummary}`.toLowerCase();
 
-  // Naïve length-based scoring.
-  if (length > 1000) return 9;
-  if (length > 600) return 8;
-  if (length > 400) return 7;
-  if (length > 200) return 6;
-  return 5;
+  // Base score
+  let score = 5;
+
+  // 1) Length heuristic (word count)
+  const wordCount = text.split(/\s+/).length;
+  if (wordCount > 800) score += 3;
+  else if (wordCount > 500) score += 2;
+  else if (wordCount > 250) score += 1;
+
+  // 2) Presence of reputable source names bumps score
+  const reputableSources = ['reuters', 'associated press', 'ap ', 'dpa', 'bbc', 'new york times', 'nyt'];
+  if (reputableSources.some((s) => text.includes(s))) score += 1;
+
+  // 3) Click-bait patterns reduce score
+  const clickbaitPatterns = [/schock/, /unglaublich/, /krass/, /wow/, /\bshock\b/, /you won\'t believe/, /sensations?/, /click here/];
+  if (clickbaitPatterns.some((p) => p.test(text))) score -= 2;
+
+  // 4) Excessive exclamation marks reduce score
+  const exclamations = (article.originalTitle.match(/!/g) || []).length;
+  if (exclamations >= 2) score -= 1;
+
+  // 5) If summary missing or very short, treat with caution
+  if (wordCount < 40) score -= 1;
+
+  // Clamp to 1-10 range
+  score = Math.max(1, Math.min(10, score));
+
+  // Simulate async to keep API shape in case of later AI integration
+  return Promise.resolve(score);
 }
 
 /**
