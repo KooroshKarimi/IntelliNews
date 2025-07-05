@@ -89,7 +89,7 @@ function App() {
         loadArticles();
       }
     }
-  }, [configuration.feeds, configuration.topics]);
+  }, [configuration.feeds, configuration.topics, loading]);
 
   // Load articles on mount and when feeds change
   useEffect(() => {
