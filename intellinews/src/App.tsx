@@ -6,7 +6,7 @@ import { TopicManager } from './components/TopicManager';
 import { loadConfiguration, saveConfiguration, generateId } from './utils/storage';
 import { parseFeed, removeDuplicates, matchTopics } from './utils/feedParser';
 import { translateArticle } from './utils/aiService';
-import { ToastContainer } from './components/ToastContainer';
+import { ToastContainer, Toast } from './components/ToastContainer';
 
 function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>(loadConfiguration());
@@ -14,7 +14,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
-  const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const pendingRef = React.useRef(false);
 
@@ -143,10 +143,10 @@ function App() {
   // Helper to add toast messages
   const addToast = (message: string) => {
     const id = generateId();
-    setToasts((prev: { id: string; message: string }[]) => [...prev, { id, message }]);
+    setToasts((prev: Toast[]) => [...prev, { id, message }]);
     // Auto-remove after 3 seconds
     setTimeout(() => {
-      setToasts((prev: { id: string; message: string }[]) => prev.filter((t) => t.id !== id));
+      setToasts((prev: Toast[]) => prev.filter((t) => t.id !== id));
     }, 3000);
   };
 
