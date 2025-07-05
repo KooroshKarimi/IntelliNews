@@ -27,6 +27,10 @@ function App() {
       pendingRef.current = true;
       return;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> b8c203c (Ensure newly added feeds are fetched after current load completes)
     setLoading(true);
     setError(null);
     
