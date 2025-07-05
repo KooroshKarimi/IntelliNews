@@ -1,0 +1,22 @@
+runtime: nodejs18
+
+service: default
+
+env_variables:
+  NODE_ENV: production
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+
+handlers:
+  - url: /health
+    static_files: intellinews/public/health.html
+    upload: intellinews/public/health.html
+
+  - url: /static
+    static_dir: intellinews/build/static
+
+  - url: /.*
+    static_files: intellinews/build/index.html
+    upload: intellinews/build/index.html
