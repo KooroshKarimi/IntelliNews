@@ -113,7 +113,7 @@ function App() {
       // Update feeds with error status nur wenn sich etwas geändert hat
       const feedsChanged = JSON.stringify(updatedFeeds) !== JSON.stringify(configuration.feeds);
       if (feedsChanged) {
-        setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
+        setConfiguration((prev: AppConfiguration) => ({ ...prev, feeds: updatedFeeds }));
       }
 
       // Remove duplicates
@@ -162,7 +162,7 @@ function App() {
 
   // Filter articles by selected topic
   const filteredArticles = selectedTopic
-    ? articles.filter(article => article.topics.includes(selectedTopic))
+    ? articles.filter((article: Article) => article.topics.includes(selectedTopic))
     : articles;
 
   // Helper to add toast messages
@@ -171,7 +171,7 @@ function App() {
     setToasts((prev: Toast[]) => [...prev, { id, message }]);
     // Auto-remove after 3 seconds
     setTimeout(() => {
-      setToasts((prev: Toast[]) => prev.filter((t) => t.id !== id));
+      setToasts((prev: Toast[]) => prev.filter((t: Toast) => t.id !== id));
     }, 3000);
   };
 
