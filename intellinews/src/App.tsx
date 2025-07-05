@@ -4,142 +4,78 @@ import { Article, AppConfiguration, Feed, Topic } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
-import { loadConfiguration, saveConfiguration, generateId } from './utils/storage';
-import { parseFeed, removeDuplicates, matchTopics } from './utils/feedParser';
-import { translateArticle } from './utils/aiService';
+import { generateId } from './utils/storage';
+import { apiService } from './utils/apiService';
 import { ToastContainer, Toast } from './components/ToastContainer';
 
 function App() {
-  const [configuration, setConfiguration] = useState<AppConfiguration>(loadConfiguration());
+  const [configuration, setConfiguration] = useState<AppConfiguration>({ feeds: [], topics: [] });
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const pendingRef = React.useRef(false);
 
-  // Save configuration whenever it changes
-  useEffect(() => {
-    saveConfiguration(configuration);
-  }, [configuration]);
-
-  // Load articles from feeds
-  const loadArticles = useCallback(async () => {
-    // Verhindern, dass mehrere gleichzeitige Ladevorgänge gestartet werden
-    if (loading) {
-      pendingRef.current = true;
-      return;
+  // Load configuration from API
+  const loadConfiguration = useCallback(async () => {
+    try {
+      const config = await apiService.getConfiguration();
+      setConfiguration(config);
+    } catch (err) {
+      console.error('Failed to load configuration:', err);
+      addToast('Konfiguration konnte nicht geladen werden');
     }
+  }, []);
+
+  // Save configuration to API
+  const saveConfiguration = useCallback(async (config: AppConfiguration) => {
+    try {
+      await apiService.saveConfiguration(config);
+      setConfiguration(config);
+    } catch (err) {
+      console.error('Failed to save configuration:', err);
+      addToast('Konfiguration konnte nicht gespeichert werden');
+    }
+  }, []);
+
+  // Load articles from API
+  const loadArticles = useCallback(async () => {
+    if (loading) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const allArticles: Article[] = [];
-      const updatedFeeds = [...configuration.feeds];
-
-      for (const feed of configuration.feeds) {
-        try {
-          let feedArticles = await parseFeed(feed);
-
-          // If feed language is not German, translate title and summary
-          if (feed.language !== 'de') {
-            feedArticles = await Promise.all(
-              feedArticles.map(async (article) => {
-                try {
-                  const { translatedTitle, translatedSummary } = await translateArticle(article, feed.language);
-                  return {
-                    ...article,
-                    translatedTitle,
-                    translatedSummary,
-                    aiEnhanced: true,
-                  };
-                } catch (err) {
-                  // Show toast for failed AI enrichment
-                  addToast('KI-Anreicherung für einen Artikel fehlgeschlagen.');
-                  return article;
-                }
-              })
-            );
-          }
-
-          allArticles.push(...feedArticles);
-          
-          // Clear any previous errors for this feed
-          const feedIndex = updatedFeeds.findIndex(f => f.id === feed.id);
-          if (feedIndex !== -1) {
-            delete updatedFeeds[feedIndex].lastError;
-            delete updatedFeeds[feedIndex].lastErrorTime;
-          }
-        } catch (err: unknown) {
-          // Ensure we always have a string message
-          const message = err instanceof Error ? err.message : 'Unknown error';
-          console.error(`Error loading feed ${feed.name}:`, message);
-
-          // Update feed with error information
-          const feedIndex = updatedFeeds.findIndex(f => f.id === feed.id);
-          if (feedIndex !== -1) {
-            updatedFeeds[feedIndex].lastError = message;
-            updatedFeeds[feedIndex].lastErrorTime = new Date().toISOString();
-          }
-        }
-      }
-
-      // Update feeds with error status nur wenn sich etwas geändert hat
-      const feedsChanged = JSON.stringify(updatedFeeds) !== JSON.stringify(configuration.feeds);
-      if (feedsChanged) {
-        setConfiguration(prev => ({ ...prev, feeds: updatedFeeds }));
-      }
-
-      // Remove duplicates
-      const uniqueArticles = removeDuplicates(allArticles);
-
-      // Match topics to articles
-      const articlesWithTopics = uniqueArticles.map(article => ({
-        ...article,
-        topics: matchTopics(article, configuration.topics)
-      }));
-
-      // Sort by publication date (newest first)
-      articlesWithTopics.sort((a, b) => 
-        new Date(b.publicationDate).getTime() - new Date(a.publicationDate).getTime()
-      );
-
-      setArticles(articlesWithTopics);
+      const articleData = await apiService.getArticles(selectedTopic || undefined, 100);
+      setArticles(articleData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
       setError(message);
+      addToast('Artikel konnten nicht geladen werden');
     } finally {
       setLoading(false);
-      if (pendingRef.current) {
-        pendingRef.current = false;
-        // Load again for pending changes
-        loadArticles();
-      }
     }
-  }, [configuration.feeds, configuration.topics, loading]);
+  }, [loading, selectedTopic]);
 
-  // Load articles on mount and when feeds change
+  // Initial load
   useEffect(() => {
-    if (configuration.feeds.length > 0 && !loading) {
+    loadConfiguration();
+  }, [loadConfiguration]);
+
+  // Load articles when configuration changes or on mount
+  useEffect(() => {
+    if (configuration.feeds.length > 0) {
       loadArticles();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configuration.feeds]);
+  }, [configuration.feeds, loadArticles]);
 
-  // Reload articles when topics change (to update topic matching)
+  // Reload articles when selected topic changes
   useEffect(() => {
-    if (articles.length > 0 && configuration.feeds.length > 0 && !loading) {
+    if (configuration.feeds.length > 0) {
       loadArticles();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configuration.topics]);
-
-  // Filter articles by selected topic
-  const filteredArticles = selectedTopic
-    ? articles.filter(article => article.topics.includes(selectedTopic))
-    : articles;
+  }, [selectedTopic, configuration.feeds, loadArticles]);
 
   // Helper to add toast messages
   const addToast = (message: string) => {
@@ -150,6 +86,26 @@ function App() {
       setToasts((prev: Toast[]) => prev.filter((t) => t.id !== id));
     }, 3000);
   };
+
+  // Handle feed management
+  const handleFeedsChange = async (feeds: Feed[]) => {
+    await saveConfiguration({ ...configuration, feeds });
+  };
+
+  // Handle topic management
+  const handleTopicsChange = async (topics: Topic[]) => {
+    await saveConfiguration({ ...configuration, topics });
+  };
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    loadArticles();
+  };
+
+  // Filter articles by selected topic (client-side for immediate response)
+  const filteredArticles = selectedTopic
+    ? articles.filter((article: Article) => article.topics.includes(selectedTopic))
+    : articles;
 
   return (
     <div className="min-h-screen bg-yellow-50">
@@ -215,7 +171,7 @@ function App() {
                 </select>
               </div>
               <button
-                onClick={() => loadArticles()}
+                onClick={handleRefresh}
                 disabled={loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -239,7 +195,7 @@ function App() {
                   ? 'Keine Feeds konfiguriert. Fügen Sie RSS-Feeds hinzu, um Artikel zu sehen.'
                   : selectedTopic 
                     ? `Keine Artikel für das Thema "${selectedTopic}" gefunden.`
-                    : 'Keine Artikel gefunden. Klicken Sie auf "Artikel aktualisieren".'}
+                    : 'Keine Artikel gefunden. Das Backend verarbeitet möglicherweise noch die Feeds.'}
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -254,18 +210,14 @@ function App() {
         {activeTab === 'feeds' && (
           <FeedManager
             feeds={configuration.feeds}
-            onFeedsChange={(feeds: Feed[]) =>
-              setConfiguration({ ...configuration, feeds })
-            }
+            onFeedsChange={handleFeedsChange}
           />
         )}
 
         {activeTab === 'topics' && (
           <TopicManager
             topics={configuration.topics}
-            onTopicsChange={(topics: Topic[]) =>
-              setConfiguration({ ...configuration, topics })
-            }
+            onTopicsChange={handleTopicsChange}
           />
         )}
       </main>
