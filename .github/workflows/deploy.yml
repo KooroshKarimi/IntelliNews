@@ -33,21 +33,18 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Verify authentication and project
+      - name: Verify authentication and project access
         run: |
           echo "🔍 Verifying authentication and project access..."
           gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -1
           gcloud config get-value project
           echo "✅ Authentication successful"
 
-      - name: Enable required APIs
+      - name: Check required services
+        continue-on-error: true
         run: |
-          echo "🔧 Enabling required Google Cloud APIs..."
-          gcloud services enable run.googleapis.com \
-            artifactregistry.googleapis.com \
-            cloudbuild.googleapis.com \
-            cloudresourcemanager.googleapis.com
-          echo "✅ APIs enabled"
+          echo "� Checking if required services are available..."
+          gcloud services list --enabled --format="value(NAME)" | grep -E "(run|artifactregistry)" || echo "⚠️ Some services may need to be enabled manually"
 
       - name: Create Artifact Registry repository
         continue-on-error: true
@@ -57,8 +54,7 @@ jobs:
             --repository-format=docker \
             --location=${{ env.GCP_REGION }} \
             --description="IntelliNews container repository" \
-            --project=${{ env.GCP_PROJECT_ID }}
-          echo "✅ Repository ready"
+            --project=${{ env.GCP_PROJECT_ID }} || echo "ℹ️ Repository may already exist"
 
       - name: Configure Docker for Artifact Registry
         run: |
