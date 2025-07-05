@@ -91,7 +91,7 @@ function App() {
           allArticles.push(...feedArticles);
           
           // Clear any previous errors for this feed
-          const feedIndex = updatedFeeds.findIndex(f => f.id === feed.id);
+          const feedIndex = updatedFeeds.findIndex((f: Feed) => f.id === feed.id);
           if (feedIndex !== -1) {
             delete updatedFeeds[feedIndex].lastError;
             delete updatedFeeds[feedIndex].lastErrorTime;
@@ -102,7 +102,7 @@ function App() {
           console.error(`Error loading feed ${feed.name}:`, message);
 
           // Update feed with error information
-          const feedIndex = updatedFeeds.findIndex(f => f.id === feed.id);
+          const feedIndex = updatedFeeds.findIndex((f: Feed) => f.id === feed.id);
           if (feedIndex !== -1) {
             updatedFeeds[feedIndex].lastError = message;
             updatedFeeds[feedIndex].lastErrorTime = new Date().toISOString();
@@ -120,7 +120,7 @@ function App() {
       const uniqueArticles = removeDuplicates(allArticles);
 
       // Match topics to articles
-      const articlesWithTopics = uniqueArticles.map(article => ({
+      const articlesWithTopics = uniqueArticles.map((article: Article) => ({
         ...article,
         topics: matchTopics(article, configuration.topics)
       }));
@@ -231,7 +231,7 @@ function App() {
                   className="px-3 py-2 border rounded-lg"
                 >
                   <option value="">Alle Themen</option>
-                  {configuration.topics.map(topic => (
+                  {configuration.topics.map((topic: Topic) => (
                     <option key={topic.id} value={topic.name}>
                       {topic.name}
                     </option>
@@ -267,7 +267,7 @@ function App() {
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredArticles.map((article) => (
+                {filteredArticles.map((article: Article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>
