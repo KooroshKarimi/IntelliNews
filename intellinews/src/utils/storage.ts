@@ -1,14 +1,15 @@
 import { AppConfiguration } from '../types';
+import { loadRemoteConfiguration, saveRemoteConfiguration } from './remoteStorage';
 
 const STORAGE_KEY = 'intellinews-config';
 
-// Load configuration from localStorage
+// Load configuration from localStorage or remote share parameter
 export function loadConfiguration(): AppConfiguration {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
     return JSON.parse(stored);
   }
-  
+
   // Return default configuration
   return {
     feeds: [
@@ -42,9 +43,20 @@ export function loadConfiguration(): AppConfiguration {
   };
 }
 
-// Save configuration to localStorage
+// Save configuration to localStorage and remote storage (async)
 export function saveConfiguration(config: AppConfiguration): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  // Fire-and-forget remote save
+  saveRemoteConfiguration(config);
+}
+
+// Optionally load remote configuration asynchronously and persist it locally
+export async function maybeMergeRemoteConfiguration(setConfig: (c: AppConfiguration) => void) {
+  const remote = await loadRemoteConfiguration();
+  if (remote) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    setConfig(remote);
+  }
 }
 
 // Generate a simple UUID

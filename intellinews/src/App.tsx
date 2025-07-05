@@ -3,7 +3,7 @@ import { Article, AppConfiguration, Feed, Topic } from './types';
 import { ArticleCard } from './components/ArticleCard';
 import { FeedManager } from './components/FeedManager';
 import { TopicManager } from './components/TopicManager';
-import { loadConfiguration, saveConfiguration } from './utils/storage';
+import { loadConfiguration, saveConfiguration, maybeMergeRemoteConfiguration } from './utils/storage';
 import { parseFeed, removeDuplicates, matchTopics } from './utils/feedParser';
 
 function App() {
@@ -14,6 +14,11 @@ function App() {
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const pendingRef = React.useRef(false);
+
+  // Load remote configuration if applicable on first mount
+  useEffect(() => {
+    maybeMergeRemoteConfiguration(setConfiguration);
+  }, []);
 
   // Save configuration whenever it changes
   useEffect(() => {
