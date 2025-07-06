@@ -379,45 +379,92 @@ app.get('/api/config', async (req, res) => {
 app.post('/api/config', async (req, res) => {
   try {
     const { feeds = [], topics = [] } = req.body;
-    
-    // This is a bulk replace operation - use with caution
-    console.warn('Bulk configuration update requested - this will replace all feeds and topics');
-    
-    // Clear existing data
+
+    // ---------------------------------------------------------------------
+    // FEEDS – Upsert logic (create or update). Feeds that are not included
+    // in the incoming payload will simply be disabled instead of being
+    // deleted. This avoids foreign-key constraint issues with the articles
+    // table, while still allowing users to "remove" a feed.
+    // ---------------------------------------------------------------------
     const existingFeeds = await feedsDB.getAll();
-    const existingTopics = await topicsDB.getAll();
-    
-    for (const feed of existingFeeds) {
-      await feedsDB.delete(feed.id);
-    }
-    
-    for (const topic of existingTopics) {
-      await topicsDB.delete(topic.id);
-    }
-    
-    // Insert new data
+    const existingFeedMap = new Map(existingFeeds.map(f => [f.id, f]));
+
+    // Track incoming feed IDs for later disabling of missing feeds
+    const incomingFeedIds = new Set();
+
     for (const feed of feeds) {
-      await feedsDB.create({
-        id: feed.id || uuidv4(),
-        name: feed.name,
-        url: feed.url,
-        language: feed.language || 'de',
-        enabled: feed.enabled !== false
-      });
+      // Ensure there is always an ID present
+      const id = feed.id || uuidv4();
+      incomingFeedIds.add(id);
+
+      if (existingFeedMap.has(id)) {
+        // Update only the changed fields to minimise DB writes
+        await feedsDB.update(id, {
+          name: feed.name,
+          url: feed.url,
+          language: feed.language || 'de',
+          enabled: feed.enabled !== false
+        });
+      } else {
+        await feedsDB.create({
+          id,
+          name: feed.name,
+          url: feed.url,
+          language: feed.language || 'de',
+          enabled: feed.enabled !== false
+        });
+      }
     }
-    
+
+    // Disable feeds that were removed from the configuration instead of
+    // deleting them outright (prevents FK violations).
+    for (const feed of existingFeeds) {
+      if (!incomingFeedIds.has(feed.id) && feed.enabled !== false) {
+        await feedsDB.update(feed.id, { enabled: false });
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // TOPICS – Upsert logic similar to feeds. No FK constraints exist at the
+    // moment, but we keep the same non-destructive behaviour for safety.
+    // ---------------------------------------------------------------------
+    const existingTopics = await topicsDB.getAll();
+    const existingTopicMap = new Map(existingTopics.map(t => [t.id, t]));
+
+    const incomingTopicIds = new Set();
+
     for (const topic of topics) {
-      await topicsDB.create({
-        id: topic.id || uuidv4(),
+      const id = topic.id || uuidv4();
+      incomingTopicIds.add(id);
+
+      const processed = {
         name: topic.name,
         keywords: topic.keywords || [],
         excludeKeywords: topic.excludeKeywords || [],
         enabled: topic.enabled !== false,
         priority: topic.priority || 1
-      });
+      };
+
+      if (existingTopicMap.has(id)) {
+        await topicsDB.update(id, processed);
+      } else {
+        await topicsDB.create({ id, ...processed });
+      }
     }
-    
-    res.json({ status: 'configuration updated', feedsCount: feeds.length, topicsCount: topics.length });
+
+    // Disable (rather than delete) topics that are no longer present
+    // Future work: decide whether to delete or keep historical topics.
+    for (const topic of existingTopics) {
+      if (!incomingTopicIds.has(topic.id) && topic.enabled !== false) {
+        await topicsDB.update(topic.id, { enabled: false });
+      }
+    }
+
+    res.json({
+      status: 'configuration updated',
+      feedsCount: feeds.length,
+      topicsCount: topics.length
+    });
   } catch (error) {
     console.error('Error updating configuration:', error);
     res.status(500).json({ error: error.message });
