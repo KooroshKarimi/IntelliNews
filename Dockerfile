@@ -10,11 +10,12 @@ RUN npm install
 COPY intellinews/ ./intellinews/
 RUN cd intellinews && npm ci && npm run build
 
-# Copy server
-COPY server.js ./
+# Copy backend
+COPY backend/ ./backend/
+RUN cd backend && npm ci
 
 # Expose port
 EXPOSE 8080
 
-# Start server
-CMD ["node", "server.js"]
+# Start the backend server
+CMD ["node", "backend/server.js"]
