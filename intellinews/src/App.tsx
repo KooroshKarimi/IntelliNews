@@ -83,7 +83,7 @@ function App() {
     setToasts((prev: Toast[]) => [...prev, { id, message }]);
     // Auto-remove after 3 seconds
     setTimeout(() => {
-      setToasts((prev: Toast[]) => prev.filter((t) => t.id !== id));
+      setToasts((prev: Toast[]) => prev.filter((t: Toast) => t.id !== id));
     }, 3000);
   };
 
@@ -163,7 +163,7 @@ function App() {
                   className="px-3 py-2 border rounded-lg"
                 >
                   <option value="">Alle Themen</option>
-                  {configuration.topics.map(topic => (
+                  {configuration.topics.map((topic: Topic) => (
                     <option key={topic.id} value={topic.name}>
                       {topic.name}
                     </option>
@@ -199,7 +199,7 @@ function App() {
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredArticles.map((article) => (
+                {filteredArticles.map((article: Article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>

@@ -1,42 +1,36 @@
 /**
- * Abstract interface for AI providers
- * Defines the contract that all AI providers must implement
+ * Simple interface for pluggable AI providers used by IntelliNews backend.
+ * @interface IAiProvider
  */
-export class IAiProvider {
+class IAiProvider {
   /**
-   * Translate text from one language to another
-   * @param {string} text - Text to translate
-   * @param {string} fromLang - Source language (de, en, other)
-   * @param {string} toLang - Target language (de, en, other)
-   * @returns {Promise<string>} Translated text
+   * Translate a text from sourceLang to targetLang.
+   * @param {string} text 
+   * @param {string} sourceLang 'de' | 'en' | 'other'
+   * @param {string} [targetLang='de']
+   * @returns {Promise<string>}
    */
-  async translate(text, fromLang, toLang) {
-    throw new Error('translate method must be implemented');
+  translate(text, sourceLang, targetLang = 'de') {
+    throw new Error('translate not implemented');
   }
 
   /**
-   * Evaluate the seriousness of an article
-   * @param {Object} article - Article object
-   * @returns {Promise<number>} Seriousness score (1-10)
+   * Evaluate seriousness on scale 1-10.
+   * @param {{ originalTitle: string, originalSummary: string }} article
+   * @returns {Promise<number>}
    */
-  async evaluateSeriousness(article) {
-    throw new Error('evaluateSeriousness method must be implemented');
+  evaluateSeriousness(article) {
+    throw new Error('evaluateSeriousness not implemented');
   }
 
   /**
-   * Generate an image for an article
-   * @param {string} prompt - Description/title for image generation
-   * @returns {Promise<string>} Image URL
+   * Generate representative image URL.
+   * @param {{ title: string }} article
+   * @returns {Promise<{ url: string; generated: boolean }>}
    */
-  async generateImage(prompt) {
-    throw new Error('generateImage method must be implemented');
-  }
-
-  /**
-   * Get the provider name
-   * @returns {string} Provider name
-   */
-  getName() {
-    throw new Error('getName method must be implemented');
+  generateImage(article) {
+    throw new Error('generateImage not implemented');
   }
 }
+
+module.exports = IAiProvider;
