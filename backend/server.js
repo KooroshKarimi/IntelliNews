@@ -1,9 +1,14 @@
 // IntelliNews backend v1.1 - Complete REST API with database persistence
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { feedsDB, articlesDB, topicsDB, userPreferencesDB, dbUtils } from './db.js';
 import { processAllFeeds, processFeedByUrl, getProcessingHealth } from './feedProcessor.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -11,6 +16,9 @@ const AI_PROVIDER = process.env.AI_PROVIDER || 'mock';
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../intellinews/build')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -490,8 +498,35 @@ app.get('/api/stats', async (req, res) => {
 // ERROR HANDLING
 // =============================================================================
 
-// 404 handler
-app.use('*', (req, res) => {
+// Catch all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // Skip API routes - they should return 404 JSON
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ 
+      error: 'Endpoint not found',
+      method: req.method,
+      path: req.originalUrl,
+      availableEndpoints: [
+        'GET /api/health',
+        'GET /api/feeds',
+        'POST /api/feeds',
+        'GET /api/topics',
+        'POST /api/topics',
+        'GET /api/articles',
+        'GET /api/preferences',
+        'PUT /api/preferences',
+        'POST /api/parse',
+        'GET /api/stats'
+      ]
+    });
+  }
+  
+  // For all other routes, serve React app
+  res.sendFile(path.join(__dirname, '../intellinews/build/index.html'));
+});
+
+// 404 handler for non-GET requests to API routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({ 
     error: 'Endpoint not found',
     method: req.method,
