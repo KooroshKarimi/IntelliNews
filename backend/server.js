@@ -388,6 +388,8 @@ app.post('/api/config', async (req, res) => {
     // ---------------------------------------------------------------------
     const existingFeeds = await feedsDB.getAll();
     const existingFeedMap = new Map(existingFeeds.map(f => [f.id, f]));
+    // Additional map keyed by URL to detect duplicates independent of ID (URL is UNIQUE)
+    const existingFeedByUrl = new Map(existingFeeds.map(f => [f.url, f]));
 
     // Track incoming feed IDs for later disabling of missing feeds
     const incomingFeedIds = new Set();
@@ -398,14 +400,26 @@ app.post('/api/config', async (req, res) => {
       incomingFeedIds.add(id);
 
       if (existingFeedMap.has(id)) {
-        // Update only the changed fields to minimise DB writes
+        // The feed already exists by ID – simple update
         await feedsDB.update(id, {
           name: feed.name,
           url: feed.url,
           language: feed.language || 'de',
           enabled: feed.enabled !== false
         });
+      } else if (existingFeedByUrl.has(feed.url)) {
+        // Same URL already exists but with a different ID (e.g., user duplicated a feed).
+        // We merge the incoming data into the existing row instead of creating a new one
+        const duplicate = existingFeedByUrl.get(feed.url);
+        incomingFeedIds.add(duplicate.id);
+
+        await feedsDB.update(duplicate.id, {
+          name: feed.name || duplicate.name,
+          language: feed.language || duplicate.language || 'de',
+          enabled: feed.enabled !== false
+        });
       } else {
+        // Completely new feed – create it
         await feedsDB.create({
           id,
           name: feed.name,
@@ -430,6 +444,7 @@ app.post('/api/config', async (req, res) => {
     // ---------------------------------------------------------------------
     const existingTopics = await topicsDB.getAll();
     const existingTopicMap = new Map(existingTopics.map(t => [t.id, t]));
+    const existingTopicByName = new Map(existingTopics.map(t => [t.name, t]));
 
     const incomingTopicIds = new Set();
 
@@ -446,7 +461,13 @@ app.post('/api/config', async (req, res) => {
       };
 
       if (existingTopicMap.has(id)) {
+        // Same ID – regular update
         await topicsDB.update(id, processed);
+      } else if (existingTopicByName.has(topic.name)) {
+        // Duplicate name with different ID, merge instead of failing on UNIQUE constraint
+        const duplicate = existingTopicByName.get(topic.name);
+        incomingTopicIds.add(duplicate.id);
+        await topicsDB.update(duplicate.id, processed);
       } else {
         await topicsDB.create({ id, ...processed });
       }
