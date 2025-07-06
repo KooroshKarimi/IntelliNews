@@ -2,7 +2,7 @@
  * Simple interface for pluggable AI providers used by IntelliNews backend.
  * @interface IAiProvider
  */
-class IAiProvider {
+export class IAiProvider {
   /**
    * Translate a text from sourceLang to targetLang.
    * @param {string} text 
@@ -10,7 +10,7 @@ class IAiProvider {
    * @param {string} [targetLang='de']
    * @returns {Promise<string>}
    */
-  translate(text, sourceLang, targetLang = 'de') {
+  async translate(text, sourceLang, targetLang = 'de') {
     throw new Error('translate not implemented');
   }
 
@@ -19,7 +19,7 @@ class IAiProvider {
    * @param {{ originalTitle: string, originalSummary: string }} article
    * @returns {Promise<number>}
    */
-  evaluateSeriousness(article) {
+  async evaluateSeriousness(article) {
     throw new Error('evaluateSeriousness not implemented');
   }
 
@@ -28,9 +28,7 @@ class IAiProvider {
    * @param {{ title: string }} article
    * @returns {Promise<{ url: string; generated: boolean }>}
    */
-  generateImage(article) {
+  async generateImage(article) {
     throw new Error('generateImage not implemented');
   }
 }
-
-module.exports = IAiProvider;

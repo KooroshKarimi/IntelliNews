@@ -1,75 +1,140 @@
 import { IAiProvider } from './IAiProvider.js';
 
 /**
- * Mock AI provider for testing and development
+ * Mock AI provider for development and testing
  */
 export class MockAiProvider extends IAiProvider {
   constructor() {
     super();
-    this.name = 'mock';
+    this.translationCache = new Map();
   }
 
   /**
-   * Mock translation - returns original text with a prefix
+   * Mock translation - simple word replacement for demonstration
    */
-  async translate(text, fromLang, toLang) {
-    // Simple mock translation - just add prefix
-    if (fromLang === toLang) {
-      return text;
-    }
+  async translate(text, sourceLang, targetLang = 'de') {
+    if (!text || sourceLang === targetLang) return text;
     
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await this.simulateDelay(200, 500);
     
-    return `[Mock Translation from ${fromLang} to ${toLang}] ${text}`;
+    // Simple mock translation with basic word replacements
+    const translations = {
+      'en->de': {
+        'news': 'Nachrichten',
+        'politics': 'Politik',
+        'economy': 'Wirtschaft',
+        'technology': 'Technologie',
+        'science': 'Wissenschaft',
+        'sports': 'Sport',
+        'health': 'Gesundheit',
+        'culture': 'Kultur',
+        'business': 'Geschäft',
+        'world': 'Welt',
+        'and': 'und',
+        'the': 'der/die/das',
+        'is': 'ist',
+        'are': 'sind',
+        'in': 'in',
+        'on': 'auf',
+        'with': 'mit'
+      },
+      'other->de': {
+        'actualités': 'Nachrichten',
+        'politique': 'Politik',
+        'économie': 'Wirtschaft',
+        'nouvelles': 'Nachrichten'
+      }
+    };
+
+    const langPair = `${sourceLang}->de`;
+    const wordMap = translations[langPair] || translations['en->de'];
+    
+    let translatedText = text;
+    Object.entries(wordMap).forEach(([original, translated]) => {
+      const regex = new RegExp(`\\b${original}\\b`, 'gi');
+      translatedText = translatedText.replace(regex, translated);
+    });
+    
+    return translatedText;
   }
 
   /**
-   * Mock seriousness evaluation - returns random score
+   * Mock seriousness evaluation based on content characteristics
    */
   async evaluateSeriousness(article) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await this.simulateDelay(100, 300);
     
-    // Simple heuristic based on title length and content
-    const title = article.translatedTitle || article.originalTitle;
-    const summary = article.translatedSummary || article.originalSummary;
+    const { originalTitle, originalSummary } = article;
+    const content = `${originalTitle} ${originalSummary}`.toLowerCase();
     
-    let score = 5; // Base score
+    let score = 5; // baseline
     
-    // Adjust based on title characteristics
-    if (title.includes('!')) score -= 1;
-    if (title.toUpperCase() === title) score -= 2;
-    if (title.length > 50) score += 1;
+    // Keywords indicating serious content
+    const seriousKeywords = [
+      'politik', 'wirtschaft', 'regierung', 'parliament', 'bundestag',
+      'wissenschaft', 'forschung', 'studie', 'analyse', 'bericht',
+      'crisis', 'krise', 'emergency', 'notfall', 'important', 'wichtig',
+      'government', 'economy', 'science', 'research', 'study'
+    ];
     
-    // Adjust based on summary characteristics
-    if (summary.length > 200) score += 1;
-    if (summary.includes('Studie') || summary.includes('Forschung')) score += 1;
-    if (summary.includes('Experte') || summary.includes('Professor')) score += 1;
+    // Keywords indicating less serious content
+    const casualKeywords = [
+      'celebrity', 'promi', 'star', 'gossip', 'klatsch', 'viral',
+      'funny', 'lustig', 'entertainment', 'unterhaltung', 'meme',
+      'social media', 'instagram', 'tiktok', 'twitter'
+    ];
     
-    // Clamp between 1 and 10
-    return Math.max(1, Math.min(10, score));
+    // Count keyword matches
+    const seriousMatches = seriousKeywords.filter(keyword => content.includes(keyword)).length;
+    const casualMatches = casualKeywords.filter(keyword => content.includes(keyword)).length;
+    
+    // Adjust score based on keywords
+    score += Math.min(seriousMatches * 0.5, 3);
+    score -= Math.min(casualMatches * 0.5, 3);
+    
+    // Length bonus
+    if (content.length > 1000) score += 1;
+    else if (content.length > 500) score += 0.5;
+    
+    // Add some randomness for realism
+    score += (Math.random() - 0.5) * 1;
+    
+    return Math.max(1, Math.min(10, Math.round(score)));
   }
 
   /**
-   * Mock image generation - returns a placeholder image
+   * Mock image generation using Unsplash with improved keyword extraction
    */
-  async generateImage(prompt) {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+  async generateImage(article) {
+    await this.simulateDelay(300, 800);
     
-    // Return placeholder image based on prompt
-    const width = 400;
-    const height = 300;
-    const encodedPrompt = encodeURIComponent(prompt.substring(0, 50));
+    const { title } = article;
     
-    return `https://via.placeholder.com/${width}x${height}/2563eb/ffffff?text=${encodedPrompt}`;
+    // Extract meaningful keywords from title
+    const stopWords = ['der', 'die', 'das', 'und', 'oder', 'aber', 'in', 'auf', 'von', 'zu', 'mit', 'für', 'an', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'gegen', 'ohne', 'um',
+                      'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'up', 'about', 'into', 'over', 'after'];
+    
+    const keywords = title
+      .toLowerCase()
+      .split(/[^a-zA-ZäöüÄÖÜß]+/)
+      .filter(word => word.length > 2 && !stopWords.includes(word))
+      .slice(0, 3)
+      .join(',');
+    
+    const query = keywords || 'news,technology,business';
+    
+    return {
+      url: `https://source.unsplash.com/800x600/?${encodeURIComponent(query)}`,
+      generated: true
+    };
   }
 
   /**
-   * Get provider name
+   * Simulate API delay for realistic behavior
    */
-  getName() {
-    return this.name;
+  async simulateDelay(minMs = 100, maxMs = 500) {
+    const delay = Math.random() * (maxMs - minMs) + minMs;
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 }
