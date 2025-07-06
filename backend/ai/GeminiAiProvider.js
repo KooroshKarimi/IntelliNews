@@ -20,9 +20,12 @@ export class GeminiAiProvider extends IAiProvider {
     if (!this.prompts) {
       try {
         const data = await fs.readFile('config/prompts.json', 'utf8');
+        if (!data || data.trim() === '') {
+          throw new Error('Empty prompts file');
+        }
         this.prompts = JSON.parse(data);
       } catch (error) {
-        console.warn('Could not load prompts.json, using defaults');
+        console.warn('Could not load prompts.json, using defaults:', error.message);
         this.prompts = {
           translation: "Übersetze den folgenden Text von {fromLang} nach {toLang}. Gib nur die Übersetzung zurück, ohne zusätzliche Erklärungen:\n\n{text}",
           seriousness: "Bewerte die Seriosität des folgenden Nachrichtenartikels auf einer Skala von 1-10, wobei 1 = sehr unseriös/sensationalistisch und 10 = sehr seriös/sachlich ist. Berücksichtige Faktoren wie Objektivität, Quellenangaben, Sachlichkeit und journalistische Qualität. Gib nur die Zahl zurück.\n\nTitel: {title}\nZusammenfassung: {summary}",
