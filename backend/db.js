@@ -298,7 +298,12 @@ export const feedsDB = {
 // Database operations for topics
 export const topicsDB = {
   async getAll() {
-    return await db.all('SELECT * FROM topics ORDER BY priority DESC, name');
+    const topics = await db.all('SELECT * FROM topics ORDER BY priority DESC, name');
+    return topics.map(topic => ({
+      ...topic,
+      keywords: JSON.parse(topic.keywords || '[]'),
+      excludeKeywords: JSON.parse(topic.excludeKeywords || '[]')
+    }));
   },
   
   async getById(id) {
