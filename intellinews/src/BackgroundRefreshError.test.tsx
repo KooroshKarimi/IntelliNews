@@ -23,14 +23,14 @@ jest.mock('./utils/apiService', () => {
 
   return {
     apiService: {
-      getConfiguration: jest.fn<Promise<AppConfiguration>, []>(() => {
+      getConfiguration: jest.fn((): Promise<AppConfiguration> => {
         const feeds: Feed[] = [
           { id: 'f1', name: 'Feed', url: 'http://feed', language: 'de' }
         ];
         return Promise.resolve({ feeds, topics: [] });
       }),
       saveConfiguration: jest.fn(() => Promise.resolve()),
-      getArticles: jest.fn<Promise<Article[]>, []>(() => {
+      getArticles: jest.fn((): Promise<Article[]> => {
         if (callCounter === 0) {
           callCounter += 1;
           return Promise.resolve(initialArticles);

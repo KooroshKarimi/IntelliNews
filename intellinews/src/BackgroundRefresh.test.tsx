@@ -38,7 +38,7 @@ jest.mock('./utils/apiService', () => {
   let callCounter = 0;
   return {
     apiService: {
-      getConfiguration: jest.fn<Promise<AppConfiguration>, []>(() => {
+      getConfiguration: jest.fn((): Promise<AppConfiguration> => {
         const feeds: Feed[] = [
           {
             id: 'f1',
@@ -50,7 +50,7 @@ jest.mock('./utils/apiService', () => {
         return Promise.resolve({ feeds, topics: [] });
       }),
       saveConfiguration: jest.fn(() => Promise.resolve()),
-      getArticles: jest.fn<Promise<Article[]>, []>(() => {
+      getArticles: jest.fn((): Promise<Article[]> => {
         // Return initial articles on first call, next articles afterwards
         const data = callCounter === 0 ? initialArticles : nextArticles;
         callCounter += 1;
