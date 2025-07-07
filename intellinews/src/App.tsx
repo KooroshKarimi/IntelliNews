@@ -7,6 +7,7 @@ import { TopicManager } from './components/TopicManager';
 import { generateId } from './utils/storage';
 import { apiService } from './utils/apiService';
 import { ToastContainer, Toast } from './components/ToastContainer';
+import { retry } from './utils/retry';
 
 function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>({ feeds: [], topics: [] });
@@ -54,7 +55,8 @@ function App() {
     setError(null);
 
     try {
-      const articleData = await apiService.getArticles(selectedTopic || undefined, 100);
+      const fetchFn = () => apiService.getArticles(selectedTopic || undefined, 100);
+      const articleData = background ? await retry(fetchFn, 2, 1000) : await fetchFn();
       setArticles(articleData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';

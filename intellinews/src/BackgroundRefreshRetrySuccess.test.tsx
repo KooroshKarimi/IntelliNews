@@ -3,14 +3,13 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import App from './App';
 import { Article, Feed, AppConfiguration } from './types';
 
-// Mock apiService for error scenario
 jest.mock('./utils/apiService', () => {
   const initialArticles: Article[] = [
     {
       id: 'a1',
       link: 'http://example.com/a1',
-      originalTitle: 'Title 1',
-      originalSummary: 'Summary 1',
+      originalTitle: 'Old',
+      originalSummary: 'Old summary',
       sourceFeedName: 'Feed',
       publicationDate: '2020-01-01T00:00:00Z',
       processedDate: '2020-01-01T00:00:00Z',
@@ -19,24 +18,41 @@ jest.mock('./utils/apiService', () => {
     }
   ];
 
-  let callCounter = 0;
+  const newArticles: Article[] = [
+    {
+      id: 'a2',
+      link: 'http://example.com/a2',
+      originalTitle: 'New',
+      originalSummary: 'New summary',
+      sourceFeedName: 'Feed',
+      publicationDate: '2020-01-02T00:00:00Z',
+      processedDate: '2020-01-02T00:00:00Z',
+      topics: [],
+      aiEnhanced: false
+    }
+  ];
+
+  let callIndex = 0;
+  function getArticles() {
+    if (callIndex === 0) {
+      callIndex++;
+      return Promise.resolve(initialArticles);
+    }
+    if (callIndex === 1 || callIndex === 2) {
+      callIndex++;
+      return Promise.reject(new Error('Temporary error'));
+    }
+    return Promise.resolve(newArticles);
+  }
 
   return {
     apiService: {
       getConfiguration: jest.fn((): Promise<AppConfiguration> => {
-        const feeds: Feed[] = [
-          { id: 'f1', name: 'Feed', url: 'http://feed', language: 'de' }
-        ];
+        const feeds: Feed[] = [{ id: 'f1', name: 'Feed', url: 'http://feed', language: 'de' }];
         return Promise.resolve({ feeds, topics: [] });
       }),
       saveConfiguration: jest.fn(() => Promise.resolve()),
-      getArticles: jest.fn((): Promise<Article[]> => {
-        if (callCounter === 0) {
-          callCounter += 1;
-          return Promise.resolve(initialArticles);
-        }
-        return Promise.reject(new Error('Network error'));
-      }),
+      getArticles: jest.fn(getArticles),
       addFeed: jest.fn(),
       deleteFeed: jest.fn(),
       addTopic: jest.fn(),
@@ -47,7 +63,7 @@ jest.mock('./utils/apiService', () => {
   };
 });
 
-describe('Background refresh error handling', () => {
+describe('Background refresh retries until success', () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
@@ -57,21 +73,21 @@ describe('Background refresh error handling', () => {
     jest.clearAllMocks();
   });
 
-  it('shows toast and hides spinner when background refresh fails', async () => {
+  it('eventually updates the article list after temporary failures', async () => {
     render(<App />);
 
-    // Wait for initial article
+    // old article visible
     await waitFor(() => {
-      expect(screen.getByText('Title 1')).toBeInTheDocument();
+      expect(screen.getByText('Old')).toBeInTheDocument();
     });
 
-    // Trigger background refresh (first attempt)
+    // trigger background refresh at 60s
     await act(async () => {
       jest.advanceTimersByTime(60000);
       await Promise.resolve();
     });
 
-    // Advance timers for 1st retry (1s) and for 2nd retry (2s)
+    // advance retries (1s, 2s)
     await act(async () => {
       jest.advanceTimersByTime(1000);
       await Promise.resolve();
@@ -79,12 +95,12 @@ describe('Background refresh error handling', () => {
       await Promise.resolve();
     });
 
-    // Wait until final failure handled
+    // after success, new article should appear
     await waitFor(() => {
-      expect(screen.queryByRole('status', { name: 'refreshing' })).not.toBeInTheDocument();
+      expect(screen.getByText('New')).toBeInTheDocument();
     });
 
-    // Toast with error message should appear after retries exhausted
-    expect(screen.getByText('Artikel konnten nicht geladen werden')).toBeInTheDocument();
+    // spinner off
+    expect(screen.queryByRole('status', { name: 'refreshing' })).not.toBeInTheDocument();
   });
 });
