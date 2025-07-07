@@ -249,7 +249,7 @@ function App() {
 
       {/* Small spinner that indicates background refresh without blocking UI */}
       {refreshing && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-50" role="status" aria-label="refreshing">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       )}
