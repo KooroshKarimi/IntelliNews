@@ -58,7 +58,9 @@ function App() {
       setArticles(articleData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
-      setError(message);
+      if (!background) {
+        setError(message);
+      }
       addToast('Artikel konnten nicht geladen werden');
     } finally {
       if (background) {
