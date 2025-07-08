@@ -15,7 +15,7 @@ function Health() {
 
 function App() {
   return (
-    <div style={{ textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ textAlign: 'center', fontFamily: 'Arial, sans-serif', backgroundColor: 'red' }}>
       <h1>Hello from React Frontend</h1>
       <p>This React app is served by the same Node.js container.</p>
       <Health />
