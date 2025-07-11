@@ -7,11 +7,14 @@ import { TopicManager } from './components/TopicManager';
 import { generateId } from './utils/storage';
 import { apiService } from './utils/apiService';
 import { ToastContainer, Toast } from './components/ToastContainer';
+import { retry } from './utils/retry';
 
 function App() {
   const [configuration, setConfiguration] = useState<AppConfiguration>({ feeds: [], topics: [] });
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
+  // Separate state for background refreshes so the main UI remains usable
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'articles' | 'feeds' | 'topics'>('articles');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -39,24 +42,36 @@ function App() {
     }
   }, []);
 
-  // Load articles from API
-  const loadArticles = useCallback(async () => {
-    if (loading) return;
-    
-    setLoading(true);
+  // Reusable loader that can run in foreground (initial/manual) or background (periodic) mode
+  const loadArticles = useCallback(async (background: boolean = false) => {
+    if (loading || refreshing) return;
+
+    if (background) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     setError(null);
-    
+
     try {
-      const articleData = await apiService.getArticles(selectedTopic || undefined, 100);
+      const fetchFn = () => apiService.getArticles(selectedTopic || undefined, 100);
+      const articleData = background ? await retry(fetchFn, 2, 1000) : await fetchFn();
       setArticles(articleData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
-      setError(message);
+      if (!background) {
+        setError(message);
+      }
       addToast('Artikel konnten nicht geladen werden');
     } finally {
-      setLoading(false);
+      if (background) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [loading, selectedTopic]);
+  }, [loading, refreshing, selectedTopic]);
 
   // Initial load
   useEffect(() => {
@@ -69,6 +84,15 @@ function App() {
       loadArticles();
     }
   }, [configuration.feeds, loadArticles]);
+
+  // Periodic background refresh (e.g., every 60 seconds)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadArticles(true);
+    }, 60000); // 1 Minute
+
+    return () => clearInterval(intervalId);
+  }, [loadArticles]);
 
   // Reload articles when selected topic changes
   useEffect(() => {
@@ -172,7 +196,7 @@ function App() {
               </div>
               <button
                 onClick={handleRefresh}
-                disabled={loading}
+                disabled={loading || refreshing}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Lädt...' : 'Artikel aktualisieren'}
@@ -224,6 +248,13 @@ function App() {
 
       {/* Toast notifications */}
       <ToastContainer toasts={toasts} />
+
+      {/* Small spinner that indicates background refresh without blocking UI */}
+      {refreshing && (
+        <div className="fixed top-4 right-4 z-50" role="status" aria-label="refreshing">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      )}
     </div>
   );
 }
