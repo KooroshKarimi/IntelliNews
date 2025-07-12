@@ -376,7 +376,7 @@ function App() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f5f5f5',
+      backgroundColor: '#8e44ad',
       fontFamily: 'Arial, sans-serif'
     }}>
       {/* Header */}
