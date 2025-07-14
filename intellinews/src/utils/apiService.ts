@@ -3,16 +3,21 @@ import { AppConfiguration, Feed, Topic, Article } from '../types';
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8080/api' : '/api';
 
 class ApiService {
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 10000): Promise<T> {
     const url = `${API_BASE}${endpoint}`;
-    
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      signal: controller.signal,
       ...options,
     });
+
+    clearTimeout(id);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
